@@ -1,5 +1,4 @@
 export const ROUTE_PATH = '/dsh-kkrpc';
-export const KKRPC_ORIGIN_KEY = '__DSH_KKRPC_ORIGIN__';
 
 export type Promisify<T> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => infer R

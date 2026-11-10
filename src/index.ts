@@ -2,9 +2,9 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import type { WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { RPCChannel, type Transport, type RPCMessage } from 'kkrpc';
-import { ROUTE_PATH, KKRPC_ORIGIN_KEY, type Promisify, type IKkRPCService } from './shared.js';
+import { ROUTE_PATH, type Promisify, type IKkRPCService } from './shared.js';
 
 export { type Promisify, type IKkRPCService };
 export const inject = ['webServer'];
@@ -117,7 +117,6 @@ export default class KkRPCService extends Service implements IKkRPCService {
 
   readonly localAPI: Record<string, any> = {};
   channel: RPCChannel | null = null;
-  private readonly token = randomBytes(16).toString('hex');
 
   constructor(ctx: Context) {
     super(ctx, 'kkrpc');
@@ -125,12 +124,6 @@ export default class KkRPCService extends Service implements IKkRPCService {
     const route: WebUpgradeRoute = {
       path: ROUTE_PATH,
       handler: (req: IncomingMessage, socket: Duplex) => {
-        const reqUrl = new URL(req.url ?? '', 'http://127.0.0.1');
-        if (reqUrl.searchParams.get('token') !== this.token) {
-          socket.destroy();
-          return;
-        }
-
         const key = req.headers['sec-websocket-key'];
         if (!key) {
           socket.destroy();
@@ -156,14 +149,6 @@ export default class KkRPCService extends Service implements IKkRPCService {
         });
       },
     };
-
-    ctx.on('webserver/index-inject', (table) => {
-      table.push({
-        kind: 'global',
-        name: KKRPC_ORIGIN_KEY,
-        value: `${ctx.webServer.getOrigin()}?token=${this.token}`,
-      });
-    });
 
     ctx.effect(() => {
       const unregisterUpgrade = ctx.webServer.registerUpgrade(route);

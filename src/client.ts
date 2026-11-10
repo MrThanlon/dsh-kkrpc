@@ -1,7 +1,7 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import { RPCChannel } from 'kkrpc';
 import { webSocketTransport } from 'kkrpc/ws';
-import { ROUTE_PATH, KKRPC_ORIGIN_KEY, type Promisify, type IKkRPCService } from './shared.js';
+import { ROUTE_PATH, type Promisify, type IKkRPCService } from './shared.js';
 import type { TestService } from './index.js';
 
 export { type Promisify, type IKkRPCService };
@@ -13,43 +13,20 @@ declare module '@deepseek-ai/cordis' {
 }
 
 function resolveWebSocketUrl(): string {
-  const globals = globalThis as Record<string, any>;
-  const injected = globals[KKRPC_ORIGIN_KEY];
-
-  let token = '';
-  if (injected) {
-    try {
-      const parsed = new URL(injected);
-      token = parsed.searchParams.get('token') ?? '';
-    } catch {}
-  }
-  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
-
-  // 1. 优先判断 location 是否为 http/https（标准 Web 环境，优先保证反向代理场景可用）
   const { protocol, host } = window.location;
   if (protocol === 'http:' || protocol === 'https:') {
     const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProtocol}//${host}${ROUTE_PATH}${tokenQuery}`;
+    return `${wsProtocol}//${host}${ROUTE_PATH}`;
   }
 
-  // 2. location 不是 http/https 时（如 Electron 桌面环境 dsh-app:// 或 file://），走后端注入的 origin
-  if (injected) {
-    const source = new URL(injected);
-    const url = new URL(ROUTE_PATH, source.origin);
-    url.search = source.search;
-    url.protocol = source.protocol === 'https:' ? 'wss:' : 'ws:';
-    return url.href;
-  }
-
-  const streamBase = globals.__DSH_TRANSPORT__?.streamBaseUrl;
+  const streamBase = (globalThis as Record<string, any>).__DSH_TRANSPORT__?.streamBaseUrl;
   if (streamBase) {
     const url = new URL(ROUTE_PATH, streamBase);
-    if (token) url.searchParams.set('token', token);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     return url.href;
   }
 
-  return `ws://127.0.0.1:3080${ROUTE_PATH}${tokenQuery}`;
+  return `ws://127.0.0.1:3080${ROUTE_PATH}`;
 }
 
 export interface KkRPCClientConfig {
@@ -132,7 +109,7 @@ export default function apply(ctx: Context) {
     };
   });
 
-  // 客户端测试插件：当 kkrpc 注入就绪后触发，直接同步获取 API
+  // 客户端测试插件
   ctx.plugin({
     inject: ['kkrpc'],
     async apply(ctx) {

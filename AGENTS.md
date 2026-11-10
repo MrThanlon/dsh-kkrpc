@@ -20,8 +20,6 @@ Welcome to **dsh-kkrpc**. This guide documents the architecture, conventions, an
 ### 2.1 Host Side (`src/index.ts`)
 - Extends Cordis `Service` and declares `static inject = ['webServer']`.
 - Registers a WebSocket HTTP upgrade route on `ctx.webServer.registerUpgrade` at `/dsh-kkrpc`.
-- Generates a cryptographically secure random token on startup and verifies connecting clients via query parameters (`?token=...`), preventing unauthorized local process access.
-- Injects the authenticated origin into the rendered Web document via the `webserver/index-inject` event (`__DSH_KKRPC_ORIGIN__`).
 - Implements RFC 6455 framing and unmasking over raw TCP `Duplex` streams without external Node `ws` dependencies.
 - Binds accepted connections to kkrpc's `RPCChannel`.
 
@@ -33,7 +31,7 @@ Welcome to **dsh-kkrpc**. This guide documents the architecture, conventions, an
   - When the socket disconnects, the service fork is immediately disposed (`dispose()`) and attempts to reconnect. Downstream plugins depending on `inject: ['kkrpc']` are thus automatically suspended and reactivated by Cordis in sync with connection state.
 - **Smart URL Resolution (`resolveWebSocketUrl`)**:
   - **Web / Reverse Proxy**: If `window.location.protocol` is `http:` or `https:`, it prioritizes `window.location.host` to ensure seamless operation through Nginx, Caddy, or external domains.
-  - **Electron Desktop**: If running under `dsh-app://app/` or non-HTTP protocols, it falls back to the host-injected origin (`__DSH_KKRPC_ORIGIN__`) or desktop transport (`__DSH_TRANSPORT__.streamBaseUrl`).
+  - **Electron Desktop**: If running under `dsh-app://app/` or non-HTTP protocols, it directly uses DSH's desktop transport origin from `globalThis.__DSH_TRANSPORT__.streamBaseUrl`, ensuring reliable connection even when plugins are installed/reloaded dynamically after page boot.
 
 ### 2.3 Service Contract (`src/shared.ts`)
 Both Host and Client implement `IKkRPCService`:

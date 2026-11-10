@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH kkRPC",
+    "description": "Bidirectional RPC communication service between Client and Host powered by kkRPC."
+  }
+}

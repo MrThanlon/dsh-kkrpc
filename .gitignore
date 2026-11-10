@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm-cache/
+
+# Build artifacts (optional, un-comment if only tracking src)
+/lib
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE & Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary / Cache
+.cache/
+.temp/
+*.tsbuildinfo

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH kkRPC",
+    "description": "基于 kkRPC 的 Client 与 Host 双向强类型 RPC 通信服务。"
+  }
+}

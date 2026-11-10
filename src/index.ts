@@ -1,21 +1,23 @@
-import { Context, Service } from '@deepseek-ai/cordis';
-import type { WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver';
-import type { IncomingMessage } from 'node:http';
-import type { Duplex } from 'node:stream';
-import { createHash } from 'node:crypto';
-import { RPCChannel, type Transport, type RPCMessage } from 'kkrpc';
-import { ROUTE_PATH, type Promisify, type IKkRPCService } from './shared.js';
+import { Context, Service } from "@deepseek-ai/cordis";
+import type { WebUpgradeRoute } from "@deepseek-ai/dsh-host-webserver";
+import type { IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
+import { createHash } from "node:crypto";
+import { RPCChannel, type Transport, type RPCMessage } from "kkrpc";
+import { ROUTE_PATH, type Promisify, type IKkRPCService } from "./shared.js";
 
 export { type Promisify, type IKkRPCService };
-export const inject = ['webServer'];
+export const inject = ["webServer"];
 
-declare module '@deepseek-ai/cordis' {
+declare module "@deepseek-ai/cordis" {
   interface Context {
     kkrpc: IKkRPCService;
   }
 }
 
-function parseFrame(buffer: Buffer): { payload: string; bytesRead: number } | null {
+function parseFrame(
+  buffer: Buffer,
+): { payload: string; bytesRead: number } | null {
   if (buffer.length < 2) return null;
   const opcode = buffer[0] & 0x0f;
   const isMasked = (buffer[1] & 0x80) === 0x80;
@@ -45,14 +47,14 @@ function parseFrame(buffer: Buffer): { payload: string; bytesRead: number } | nu
     } else {
       buffer.copy(payload, 0, offset, offset + len);
     }
-    return { payload: payload.toString('utf8'), bytesRead: offset + len };
+    return { payload: payload.toString("utf8"), bytesRead: offset + len };
   }
 
-  return { payload: '', bytesRead: offset + len };
+  return { payload: "", bytesRead: offset + len };
 }
 
 function encodeFrame(text: string): Buffer {
-  const payload = Buffer.from(text, 'utf8');
+  const payload = Buffer.from(text, "utf8");
   const len = payload.length;
   let header: Buffer;
   if (len < 126) {
@@ -75,7 +77,7 @@ function createServerTransport(socket: Duplex): Transport<RPCMessage> {
   const listeners = new Set<(msg: RPCMessage) => void>();
   let buffer = Buffer.alloc(0);
 
-  socket.on('data', (chunk: Buffer) => {
+  socket.on("data", (chunk: Buffer) => {
     buffer = Buffer.concat([buffer, chunk]);
     while (true) {
       const frame = parseFrame(buffer);
@@ -108,43 +110,50 @@ const testService = {
   greeting(name: string) {
     return `Hello, ${name}!`;
   },
+  callback(fn: (msg: string) => void) {
+    setTimeout(() => fn("first call"), 1000);
+    return (async function* () {
+      yield "second call";
+      yield "third call";
+    })();
+  },
 };
 export type TestService = typeof testService;
 
 export default class KkRPCService extends Service implements IKkRPCService {
-  static provide = 'kkrpc';
-  static inject = ['webServer'];
+  static provide = "kkrpc";
+  static inject = ["webServer"];
 
   readonly localAPI: Record<string, any> = {};
   channel: RPCChannel | null = null;
 
   constructor(ctx: Context) {
-    super(ctx, 'kkrpc');
+    super(ctx, "kkrpc");
 
     const route: WebUpgradeRoute = {
       path: ROUTE_PATH,
       handler: (req: IncomingMessage, socket: Duplex) => {
-        const key = req.headers['sec-websocket-key'];
+        const key = req.headers["sec-websocket-key"];
         if (!key) {
           socket.destroy();
           return;
         }
 
-        const accept = createHash('sha1')
-          .update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
-          .digest('base64');
+        const accept = createHash("sha1")
+          .update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+          .digest("base64");
 
         socket.write(
-          'HTTP/1.1 101 Switching Protocols\r\n' +
-          'Upgrade: websocket\r\n' +
-          'Connection: Upgrade\r\n' +
-          `Sec-WebSocket-Accept: ${accept}\r\n\r\n`
+          "HTTP/1.1 101 Switching Protocols\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Connection: Upgrade\r\n" +
+            `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
         );
 
         const transport = createServerTransport(socket);
         this.channel = new RPCChannel(transport, { expose: this.localAPI });
 
-        socket.once('close', () => {
+        socket.once("close", () => {
           this.channel = null;
         });
       },
@@ -159,10 +168,10 @@ export default class KkRPCService extends Service implements IKkRPCService {
     });
 
     ctx.plugin({
-      inject: ['kkrpc'],
+      inject: ["kkrpc"],
       apply(ctx) {
-        console.log('kkrpc host test plugin applied');
-        ctx.kkrpc.exposeAPI('test', testService);
+        console.log("kkrpc host test plugin applied");
+        ctx.kkrpc.exposeAPI("test", testService);
       },
     });
   }
@@ -171,13 +180,16 @@ export default class KkRPCService extends Service implements IKkRPCService {
     namespace: string,
   ): Promisify<T> {
     if (!this.channel) {
-      throw new Error('kkRPC is not connected');
+      throw new Error("kkRPC is not connected");
     }
     const remote = this.channel.getAPI() as Record<string, any>;
     return remote[namespace] as Promisify<T>;
   }
 
-  exposeAPI<T extends Record<string, any>>(namespace: string, api: T): () => void {
+  exposeAPI<T extends Record<string, any>>(
+    namespace: string,
+    api: T,
+  ): () => void {
     return this.ctx.effect(() => {
       this.localAPI[namespace] = api;
       return () => {

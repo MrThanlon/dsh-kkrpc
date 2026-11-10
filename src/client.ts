@@ -1,12 +1,12 @@
-import { Context, Service } from '@deepseek-ai/cordis';
-import { RPCChannel } from 'kkrpc';
-import { webSocketTransport } from 'kkrpc/ws';
-import { ROUTE_PATH, type Promisify, type IKkRPCService } from './shared.js';
-import type { TestService } from './index.js';
+import { Context, Service } from "@deepseek-ai/cordis";
+import { RPCChannel, wrap } from "kkrpc";
+import { webSocketTransport } from "kkrpc/ws";
+import { ROUTE_PATH, type Promisify, type IKkRPCService } from "./shared.js";
+import type { TestService } from "./index.js";
 
 export { type Promisify, type IKkRPCService };
 
-declare module '@deepseek-ai/cordis' {
+declare module "@deepseek-ai/cordis" {
   interface Context {
     kkrpc: IKkRPCService;
   }
@@ -14,15 +14,16 @@ declare module '@deepseek-ai/cordis' {
 
 function resolveWebSocketUrl(): string {
   const { protocol, host } = window.location;
-  if (protocol === 'http:' || protocol === 'https:') {
-    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+  if (protocol === "http:" || protocol === "https:") {
+    const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
     return `${wsProtocol}//${host}${ROUTE_PATH}`;
   }
 
-  const streamBase = (globalThis as Record<string, any>).__DSH_TRANSPORT__?.streamBaseUrl;
+  const streamBase = (globalThis as Record<string, any>).__DSH_TRANSPORT__
+    ?.streamBaseUrl;
   if (streamBase) {
     const url = new URL(ROUTE_PATH, streamBase);
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     return url.href;
   }
 
@@ -34,13 +35,13 @@ export interface KkRPCClientConfig {
 }
 
 export class KkRPCService extends Service implements IKkRPCService {
-  static provide = 'kkrpc';
+  static provide = "kkrpc";
 
   readonly localAPI: Record<string, any> = {};
   readonly channel: RPCChannel;
 
   constructor(ctx: Context, config: KkRPCClientConfig) {
-    super(ctx, 'kkrpc');
+    super(ctx, "kkrpc");
     const transport = webSocketTransport(config.socket);
     this.channel = new RPCChannel(transport, { expose: this.localAPI });
   }
@@ -52,7 +53,10 @@ export class KkRPCService extends Service implements IKkRPCService {
     return remote[namespace] as Promisify<T>;
   }
 
-  exposeAPI<T extends Record<string, any>>(namespace: string, api: T): () => void {
+  exposeAPI<T extends Record<string, any>>(
+    namespace: string,
+    api: T,
+  ): () => void {
     return this.ctx.effect(() => {
       this.localAPI[namespace] = api;
       return () => {
@@ -111,11 +115,21 @@ export default function apply(ctx: Context) {
 
   // 客户端测试插件
   ctx.plugin({
-    inject: ['kkrpc'],
+    inject: ["kkrpc"],
     async apply(ctx) {
-      console.log('kkrpc client test plugin applied');
-      const client = ctx.kkrpc.getAPI<TestService>('test');
-      console.log(await client.greeting('World'));
+      try {
+        console.log("kkrpc client test plugin applied");
+        const client = ctx.kkrpc.getAPI<TestService>("test");
+        console.log(await client.greeting("World"));
+        console.log("start callback test");
+        const result = await client.callback((msg) => {
+          console.log("Callback received:", msg);
+        });
+        console.log("callback called", result);
+        console.log("callback finished");
+      } catch (error) {
+        console.error(error);
+      }
     },
   });
 }

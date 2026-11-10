@@ -1,6 +1,6 @@
 {
   "name": "dsh-kkrpc",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bidirectional RPC bridge plugin for DeepSeek Harness powered by kkRPC.",
   "author": "MrThanlon",
   "license": "MIT",

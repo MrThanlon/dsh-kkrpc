@@ -106,20 +106,6 @@ function createServerTransport(socket: Duplex): Transport<RPCMessage> {
   };
 }
 
-const testService = {
-  greeting(name: string) {
-    return `Hello, ${name}!`;
-  },
-  callback(fn: (msg: string) => void) {
-    setTimeout(() => fn("first call"), 1000);
-    return (async function* () {
-      yield "second call";
-      yield "third call";
-    })();
-  },
-};
-export type TestService = typeof testService;
-
 export default class KkRPCService extends Service implements IKkRPCService {
   static provide = "kkrpc";
   static inject = ["webServer"];
@@ -165,14 +151,6 @@ export default class KkRPCService extends Service implements IKkRPCService {
         unregisterUpgrade();
         this.channel = null;
       };
-    });
-
-    ctx.plugin({
-      inject: ["kkrpc"],
-      apply(ctx) {
-        console.log("kkrpc host test plugin applied");
-        ctx.kkrpc.exposeAPI("test", testService);
-      },
     });
   }
 

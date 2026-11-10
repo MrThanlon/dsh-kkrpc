@@ -1,8 +1,7 @@
 import { Context, Service } from "@deepseek-ai/cordis";
-import { RPCChannel, wrap } from "kkrpc";
+import { RPCChannel } from "kkrpc";
 import { webSocketTransport } from "kkrpc/ws";
 import { ROUTE_PATH, type Promisify, type IKkRPCService } from "./shared.js";
-import type { TestService } from "./index.js";
 
 export { type Promisify, type IKkRPCService };
 
@@ -111,25 +110,5 @@ export default function apply(ctx: Context) {
         socket.close();
       }
     };
-  });
-
-  // 客户端测试插件
-  ctx.plugin({
-    inject: ["kkrpc"],
-    async apply(ctx) {
-      try {
-        console.log("kkrpc client test plugin applied");
-        const client = ctx.kkrpc.getAPI<TestService>("test");
-        console.log(await client.greeting("World"));
-        console.log("start callback test");
-        const result = await client.callback((msg) => {
-          console.log("Callback received:", msg);
-        });
-        console.log("callback called", result);
-        console.log("callback finished");
-      } catch (error) {
-        console.error(error);
-      }
-    },
   });
 }

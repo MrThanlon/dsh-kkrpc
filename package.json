@@ -12,7 +12,6 @@
     "url": "https://github.com/MrThanlon/dsh-kkrpc/issues"
   },
   "homepage": "https://github.com/MrThanlon/dsh-kkrpc#readme",
-  "private": true,
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",

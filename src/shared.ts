@@ -10,6 +10,6 @@ export type Promisify<T> = {
 };
 
 export interface IKkRPCService {
-  getAPI<T extends Record<string, any> = Record<string, any>>(namespace: string): Promise<Promisify<T>>;
+  getAPI<T extends Record<string, any> = Record<string, any>>(namespace: string): Promisify<T>;
   exposeAPI<T extends Record<string, any>>(namespace: string, api: T): () => void;
 }

@@ -40,9 +40,8 @@ Both Host and Client implement `IKkRPCService`:
 - `exposeAPI<T>(namespace: string, api: T): () => void`
   - Mounts methods under an isolated `namespace`.
   - Automatically manages cleanup via `this.ctx.effect`: when the registering plugin unloads, its exposed API is automatically unmounted.
-- `getAPI<T>(namespace: string): Promise<Promisify<T>>`
-  - Asynchronously resolves once the WebSocket connection is established.
-  - Automatically maps remote methods with recursive `Promisify<T>` ensuring type safety.
+- `getAPI<T>(namespace: string): Promisify<T>`
+  - Synchronously returns the proxy for that namespace. Automatically maps remote methods with recursive `Promisify<T>` ensuring type safety.
 
 ---
 
@@ -105,7 +104,7 @@ export function apply(ctx: Context) {
 
   // Call Client methods once connected
   void (async () => {
-    const client = await ctx.kkrpc.getAPI('myClientService');
+    const client = ctx.kkrpc.getAPI('myClientService');
     const result = await client.notifyUser('Hello from Host!');
   })();
 }
@@ -128,7 +127,7 @@ export function apply(ctx: Context) {
 
   // Call Host methods
   void (async () => {
-    const host = await ctx.kkrpc.getAPI('myHostService');
+    const host = ctx.kkrpc.getAPI('myHostService');
     const status = await host.querySystemStatus();
     console.log('Host status:', status);
   })();

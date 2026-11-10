@@ -68,9 +68,9 @@ export class KkRPCService extends Service implements IKkRPCService {
     this.channel = new RPCChannel(transport, { expose: this.localAPI });
   }
 
-  async getAPI<T extends Record<string, any> = Record<string, any>>(
+  getAPI<T extends Record<string, any> = Record<string, any>>(
     namespace: string,
-  ): Promise<Promisify<T>> {
+  ): Promisify<T> {
     const remote = this.channel.getAPI() as Record<string, any>;
     return remote[namespace] as Promisify<T>;
   }
@@ -132,12 +132,12 @@ export default function apply(ctx: Context) {
     };
   });
 
-  // 客户端测试插件
+  // 客户端测试插件：当 kkrpc 注入就绪后触发，直接同步获取 API
   ctx.plugin({
     inject: ['kkrpc'],
     async apply(ctx) {
       console.log('kkrpc client test plugin applied');
-      const client = await ctx.kkrpc.getAPI<TestService>('test');
+      const client = ctx.kkrpc.getAPI<TestService>('test');
       console.log(await client.greeting('World'));
     },
   });

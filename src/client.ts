@@ -1,9 +1,8 @@
 import { Context, Service } from "@deepseek-ai/cordis";
-import { RPCChannel } from "kkrpc";
+import { RPCChannel, proxy, releaseProxy } from "kkrpc/remote-refs";
 import { webSocketTransport } from "kkrpc/ws";
-import { ROUTE_PATH, type Promisify, type IKkRPCService } from "./shared.js";
-
-export { type Promisify, type IKkRPCService };
+import { ROUTE_PATH, type IKkRPCService, type Promisify } from "./shared";
+export { proxy, releaseProxy, type IKkRPCService, type Promisify };
 
 declare module "@deepseek-ai/cordis" {
   interface Context {

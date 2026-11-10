@@ -1,12 +1,18 @@
 import { Context, Service } from "@deepseek-ai/cordis";
 import type { WebUpgradeRoute } from "@deepseek-ai/dsh-host-webserver";
-import type { IncomingMessage } from "node:http";
-import type { Duplex } from "node:stream";
-import { createHash } from "node:crypto";
-import { RPCChannel, type Transport, type RPCMessage } from "kkrpc";
-import { ROUTE_PATH, type Promisify, type IKkRPCService } from "./shared.js";
+import { createHash } from "crypto";
+import type { IncomingMessage } from "http";
+import {
+  proxy,
+  releaseProxy,
+  RPCChannel,
+  type RPCMessage,
+  type Transport,
+} from "kkrpc/remote-refs";
+import type { Duplex } from "stream";
+import { ROUTE_PATH, type IKkRPCService, type Promisify } from "./shared";
 
-export { type Promisify, type IKkRPCService };
+export { proxy, releaseProxy, type IKkRPCService, type Promisify };
 export const inject = ["webServer"];
 
 declare module "@deepseek-ai/cordis" {

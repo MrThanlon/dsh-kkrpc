@@ -10,18 +10,7 @@
     "declaration": true,
     "outDir": "lib",
     "rootDir": "src",
-    "typeRoots": [
-      "C:/Users/HuangZiYi/source/deepseek-harness/node_modules/@types"
-    ],
-    "types": ["node"],
-    "paths": {
-      "@deepseek-ai/cordis": [
-        "C:/Users/HuangZiYi/source/deepseek-harness/vendor/cordis/lib/types/index.d.ts"
-      ],
-      "@deepseek-ai/dsh-host-webserver": [
-        "C:/Users/HuangZiYi/source/deepseek-harness/packages/host/webserver/lib/types/index.d.ts"
-      ]
-    }
+    "types": ["node"]
   },
   "include": ["src/**/*"]
 }

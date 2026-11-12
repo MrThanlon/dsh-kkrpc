@@ -1,6 +1,6 @@
 {
   "name": "dsh-kkrpc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Bidirectional RPC bridge plugin for DeepSeek Harness powered by kkRPC.",
   "author": "MrThanlon",
   "license": "MIT",
@@ -49,7 +49,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.1.0",
-    "@deepseek-ai/dsh-host-webserver": "0.2.2-rc.1"
+    "@deepseek-ai/dsh-host-webserver": "^0.2.2-rc.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

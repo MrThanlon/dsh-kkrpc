@@ -1,4 +1,10 @@
-export const ROUTE_PATH = '/dsh-kkrpc';
+export const ROUTE_PATH = "/dsh-kkrpc";
+
+declare module "@deepseek-ai/cordis" {
+  interface Events {
+    "kkrpc/custom"(n: number): void;
+  }
+}
 
 /**
  * Transforms an RPC value type to reflect wire serialization rules.
@@ -21,8 +27,3 @@ export type Promisify<T> = {
       ? Promisify<T[K]>
       : Promise<CleanRPCValue<Awaited<T[K]>>>;
 };
-
-export interface IKkRPCService {
-  getAPI<T extends Record<string, any> = Record<string, any>>(namespace: string): Promisify<T>;
-  exposeAPI<T extends Record<string, any>>(namespace: string, api: T): () => void;
-}

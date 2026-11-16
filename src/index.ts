@@ -1,25 +1,20 @@
 import { Context, Service } from "@deepseek-ai/cordis";
 import type { WebUpgradeRoute } from "@deepseek-ai/dsh-host-webserver";
-import { createHash } from "crypto";
-import type { IncomingMessage } from "http";
+import type { IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
+import { createHash } from "node:crypto";
 import {
+  RPCChannel,
+  type Transport,
+  type RPCMessage,
   proxy,
   releaseProxy,
-  RPCChannel,
-  type RPCMessage,
-  type Transport,
-} from "kkrpc/remote-refs";
-import type { Duplex } from "stream";
-import { ROUTE_PATH, type IKkRPCService, type Promisify } from "./shared";
+} from "@mrthanlon/kkrpc/remote-refs";
+import { ROUTE_PATH, type Promisify } from "./shared";
 
-export { proxy, releaseProxy, type IKkRPCService, type Promisify };
+export { proxy, releaseProxy };
+export { type Promisify };
 export const inject = ["webServer"];
-
-declare module "@deepseek-ai/cordis" {
-  interface Context {
-    kkrpc: IKkRPCService;
-  }
-}
 
 function parseFrame(
   buffer: Buffer,
@@ -99,6 +94,7 @@ function createServerTransport(socket: Duplex): Transport<RPCMessage> {
   });
 
   return {
+    capabilities: { remoteRefs: true },
     send(message: RPCMessage) {
       socket.write(encodeFrame(JSON.stringify(message)));
     },
@@ -112,11 +108,46 @@ function createServerTransport(socket: Duplex): Transport<RPCMessage> {
   };
 }
 
-export default class KkRPCService extends Service implements IKkRPCService {
-  static provide = "kkrpc";
+function createTrackedContextProxy(ctx: Context, disposers: Set<() => void>) {
+  return new Proxy(ctx as any, {
+    get(target, prop) {
+      if (prop === "on" || prop === "once") {
+        return (event: string, listener: (...args: any[]) => any) => {
+          // 包装远端回调：若远端连接断开或调用抛错，捕获返回的 rejected promise，防止导致 Node.js 未捕获异常
+          const safeListener = (...args: any[]) => {
+            try {
+              const res = listener(...args);
+              if (res && typeof res.catch === "function") {
+                res.catch(() => {});
+              }
+              return res;
+            } catch {
+              return undefined;
+            }
+          };
+
+          const unregister = target[prop](event, safeListener);
+          const dispose = () => {
+            disposers.delete(dispose);
+            unregister();
+          };
+          disposers.add(dispose);
+          return dispose;
+        };
+      }
+
+      const value = Reflect.get(target, prop, target);
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+  });
+}
+
+export default class KkRPCService extends Service {
   static inject = ["webServer"];
 
-  readonly localAPI: Record<string, any> = {};
   channel: RPCChannel | null = null;
 
   constructor(ctx: Context) {
@@ -142,11 +173,26 @@ export default class KkRPCService extends Service implements IKkRPCService {
             `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
         );
 
+        const disposers = new Set<() => void>();
+        const trackedCtx = createTrackedContextProxy(ctx, disposers);
         const transport = createServerTransport(socket);
-        this.channel = new RPCChannel(transport, { expose: this.localAPI });
+
+        const channel = new RPCChannel(transport, {
+          expose: trackedCtx,
+        });
+        this.channel = channel;
 
         socket.once("close", () => {
-          this.channel = null;
+          for (const dispose of disposers) {
+            try {
+              dispose();
+            } catch {}
+          }
+          disposers.clear();
+          channel.destroy();
+          if (this.channel === channel) {
+            this.channel = null;
+          }
         });
       },
     };
@@ -158,27 +204,14 @@ export default class KkRPCService extends Service implements IKkRPCService {
         this.channel = null;
       };
     });
-  }
 
-  getAPI<T extends Record<string, any> = Record<string, any>>(
-    namespace: string,
-  ): Promisify<T> {
-    if (!this.channel) {
-      throw new Error("kkRPC is not connected");
-    }
-    const remote = this.channel.getAPI() as Record<string, any>;
-    return remote[namespace] as Promisify<T>;
-  }
-
-  exposeAPI<T extends Record<string, any>>(
-    namespace: string,
-    api: T,
-  ): () => void {
-    return this.ctx.effect(() => {
-      this.localAPI[namespace] = api;
-      return () => {
-        delete this.localAPI[namespace];
-      };
+    ctx.inject(["timer"], (ctx) => {
+      let n = 0;
+      ctx.interval(() => {
+        console.log("foo", n);
+        ctx.emit("kkrpc/custom", n);
+        n += 1;
+      }, 3000);
     });
   }
 }

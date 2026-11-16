@@ -10,7 +10,7 @@
     "declaration": true,
     "outDir": "lib",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node", "@deepseek-ai/cordis-plugin-timer"]
   },
   "include": ["src/**/*"]
 }

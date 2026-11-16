@@ -14,10 +14,13 @@ importers:
       '@deepseek-ai/dsh-host-webserver':
         specifier: ^0.2.2-rc.1
         version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)
-      kkrpc:
-        specifier: ^2.1.0
-        version: 2.1.0(typescript@7.0.2)(ws@8.22.2)
+      '@mrthanlon/kkrpc':
+        specifier: link:C:/Users/HuangZiYi/source/kkrpc/packages/kkrpc
+        version: link:../../../../source/kkrpc/packages/kkrpc
     devDependencies:
+      '@deepseek-ai/cordis-plugin-timer':
+        specifier: ^1.2.0
+        version: 1.2.0(@deepseek-ai/cordis@4.1.0)
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -38,6 +41,11 @@ importers:
         version: 8.22.2
 
 packages:
+
+  '@deepseek-ai/cordis-plugin-timer@1.2.0':
+    resolution: {integrity: sha512-DTFp2IcK4Xnp0BWG546fwgeKjrBcSm9a9QjCtaV5Ko9hxiB/Cg03FINSNiR7OEbeg7/s4Y7QBxgQYFVYRl9V+g==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ~4.1.0
 
   '@deepseek-ai/cordis@4.1.0':
     resolution: {integrity: sha512-CJrjNyBkKn1SfvBQUcgFYKFnLjS+uKrhdMsbHU60xabvi12d+xQ+IQSNlME5Z+B+4Zi6n4BDknKY94tEPeo47w==}
@@ -526,10 +534,6 @@ packages:
     resolution: {integrity: sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag==}
     engines: {node: '>=18'}
 
-  copy-anything@4.1.5:
-    resolution: {integrity: sha512-vePst2VLTSqPglW7Q98VwFpGiGpOHTyXIo81MO5VyLecA5zMbZw/P/V1vmwD1jksa2iJpn/YkDrJ3XhTfzUyhQ==}
-    engines: {node: '>=18'}
-
   debug@2.6.9:
     resolution: {integrity: sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==}
     peerDependencies:
@@ -591,42 +595,6 @@ packages:
   ipaddr.js@2.5.0:
     resolution: {integrity: sha512-aq+t5NAc+cS6rZQQVWC2x98CPqGtKKTMDd4Gaodv0wShnItdKg/51djkGJ1hqH+Oy0ivDftCbSLCQob8zso01w==}
     engines: {node: '>= 10'}
-
-  kkrpc@2.1.0:
-    resolution: {integrity: sha512-ijiqw6g83paCFtwN9vjp093F4VUKuq5PT6C9VoCgRqlUGefCYR1LIVzC+4MNodB+sXfjO9z3cM4aeC2QDYIFGQ==}
-    peerDependencies:
-      '@nats-io/transport-node': ^3.3.0
-      '@tauri-apps/plugin-shell': ^2.2.0
-      amqplib: ^0.10.9
-      elysia: ^1.0.0
-      hono: ^4.10.4
-      ioredis: ^5.0.0
-      kafkajs: ^2.2.4
-      socket.io: ^4.0.0
-      socket.io-client: ^4.0.0
-      typescript: ^5.0.0 || ^6.0.0
-      ws: ^8.18.0
-    peerDependenciesMeta:
-      '@nats-io/transport-node':
-        optional: true
-      '@tauri-apps/plugin-shell':
-        optional: true
-      amqplib:
-        optional: true
-      elysia:
-        optional: true
-      hono:
-        optional: true
-      ioredis:
-        optional: true
-      kafkajs:
-        optional: true
-      socket.io:
-        optional: true
-      socket.io-client:
-        optional: true
-      ws:
-        optional: true
 
   mime-db@1.54.0:
     resolution: {integrity: sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==}
@@ -690,10 +658,6 @@ packages:
 
   safe-buffer@5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
-
-  superjson@2.2.6:
-    resolution: {integrity: sha512-H+ue8Zo4vJmV2nRjpx86P35lzwDT3nItnIsocgumgr0hHMQ+ZGq5vrERg9kJBo5AWGmxZDhzDo+WVIJqkB0cGA==}
-    engines: {node: '>=16'}
 
   tinyexec@1.3.1:
     resolution: {integrity: sha512-GCvB3aoys96IuDFBMcTB46JOR6mdMtAToqwiW8JlWhsoh1mhHi/xn9ss/Dg7N555GiJyEt2qzoG/NHCwM6h1EA==}
@@ -789,6 +753,11 @@ packages:
         optional: true
 
 snapshots:
+
+  '@deepseek-ai/cordis-plugin-timer@1.2.0(@deepseek-ai/cordis@4.1.0)':
+    dependencies:
+      '@deepseek-ai/cordis': 4.1.0
+      '@deepseek-ai/cosmokit': 1.9.0
 
   '@deepseek-ai/cordis@4.1.0':
     dependencies:
@@ -1089,8 +1058,6 @@ snapshots:
 
   content-type@2.1.0: {}
 
-  copy-anything@4.1.5: {}
-
   debug@2.6.9:
     dependencies:
       ms: 2.0.0
@@ -1149,13 +1116,6 @@ snapshots:
 
   ipaddr.js@2.5.0: {}
 
-  kkrpc@2.1.0(typescript@7.0.2)(ws@8.22.2):
-    dependencies:
-      superjson: 2.2.6
-      typescript: 7.0.2
-    optionalDependencies:
-      ws: 8.22.2
-
   mime-db@1.54.0: {}
 
   ms@2.0.0: {}
@@ -1212,10 +1172,6 @@ snapshots:
       '@rolldown/binding-win32-x64-msvc': 1.3.0
 
   safe-buffer@5.2.1: {}
-
-  superjson@2.2.6:
-    dependencies:
-      copy-anything: 4.1.5
 
   tinyexec@1.3.1: {}
 

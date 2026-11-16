@@ -1,41 +1,43 @@
-import { expose, proxy, wrap } from "kkrpc/remote-refs";
-import { webSocketClientTransport, webSocketTransport } from "kkrpc/ws";
+import {
+  expose,
+  PromisifyReturn,
+  Transport,
+  wrap,
+} from "@mrthanlon/kkrpc/remote-refs";
+import {
+  webSocketClientTransport,
+  webSocketTransport,
+} from "@mrthanlon/kkrpc/ws";
 import { WebSocketServer } from "ws";
+import { Context, Events } from "@deepseek-ai/cordis";
 
-const api = {
-  async closure() {
-    return proxy(() => 114514);
-  },
-  asyncIterator: async function* () {
-    yield 1919810;
-  },
-  async callback(cb: () => Promise<number>) {
-    const n = await cb();
-    console.log("host:", n);
-    return n;
-  },
-};
-type API = typeof api;
+declare module "@deepseek-ai/cordis" {
+  interface Events {
+    "foo"(n: number): void;
+  }
+}
 
 const wss = new WebSocketServer({ port: 0 });
 wss.on("connection", (ws) => {
-  expose(api, webSocketTransport(ws));
+  const ctx = new Context();
+  expose(ctx as any, webSocketTransport(ws));
+  setInterval(() => {
+    ctx.emit("foo", 222);
+  }, 1000);
 });
 wss.on("listening", async () => {
   const address = wss.address();
   const port = (address as { port: number }).port;
-  const api = wrap<API>(
+  const ctx = wrap<Context>(
     webSocketClientTransport({ url: `ws://localhost:${port}` }),
   );
-  const cb = await api.closure();
-  // cb is actually undefined, expected () => number
-  console.log("expect", cb, "to be [Function: cb]");
 
-  // const iter = await api.asyncIterator();
-  // // iter is actually {}, expected AsyncGenerator<number, void, unknown>
-  // console.log("expect", iter, "to be Object [AsyncGenerator] {}");
-
-  const result = await api.callback(proxy(() => Promise.resolve(321)));
-  console.log("client:", result);
-  process.exit(0);
+  const dispose = await ctx.on("foo", (n: number) => {
+    console.log("foo", n);
+    setTimeout(() => {
+      dispose();
+      setTimeout(() => process.exit(0), 3000);
+    }, 5000);
+  });
+  console.log(dispose);
 });

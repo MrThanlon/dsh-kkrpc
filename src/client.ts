@@ -1,12 +1,18 @@
-import { Context, Service } from "@deepseek-ai/cordis";
-import { RPCChannel, proxy, releaseProxy } from "kkrpc/remote-refs";
-import { webSocketTransport } from "kkrpc/ws";
-import { ROUTE_PATH, type IKkRPCService, type Promisify } from "./shared";
-export { proxy, releaseProxy, type IKkRPCService, type Promisify };
+import { type Context, Service } from "@deepseek-ai/cordis";
+import {
+  RPCChannel,
+  Remote,
+  proxy,
+  releaseProxy,
+  wrap,
+} from "@mrthanlon/kkrpc/remote-refs";
+import { webSocketTransport } from "@mrthanlon/kkrpc/ws";
+import { ROUTE_PATH, type Promisify } from "./shared";
+export { proxy, releaseProxy, type Promisify };
 
 declare module "@deepseek-ai/cordis" {
   interface Context {
-    kkrpc: IKkRPCService;
+    kkrpc: Remote<Context>;
   }
 }
 
@@ -32,38 +38,6 @@ export interface KkRPCClientConfig {
   socket: WebSocket;
 }
 
-export class KkRPCService extends Service implements IKkRPCService {
-  static provide = "kkrpc";
-
-  readonly localAPI: Record<string, any> = {};
-  readonly channel: RPCChannel;
-
-  constructor(ctx: Context, config: KkRPCClientConfig) {
-    super(ctx, "kkrpc");
-    const transport = webSocketTransport(config.socket);
-    this.channel = new RPCChannel(transport, { expose: this.localAPI });
-  }
-
-  getAPI<T extends Record<string, any> = Record<string, any>>(
-    namespace: string,
-  ): Promisify<T> {
-    const remote = this.channel.getAPI() as Record<string, any>;
-    return remote[namespace] as Promisify<T>;
-  }
-
-  exposeAPI<T extends Record<string, any>>(
-    namespace: string,
-    api: T,
-  ): () => void {
-    return this.ctx.effect(() => {
-      this.localAPI[namespace] = api;
-      return () => {
-        delete this.localAPI[namespace];
-      };
-    });
-  }
-}
-
 export default function apply(ctx: Context) {
   ctx.effect(() => {
     let socket: WebSocket | null = null;
@@ -82,7 +56,9 @@ export default function apply(ctx: Context) {
           ws.close();
           return;
         }
-        serviceFork = ctx.plugin(KkRPCService, { socket: ws });
+        serviceFork = {
+          dispose: ctx.provide("kkrpc", wrap(webSocketTransport(ws))),
+        };
       };
 
       ws.onclose = () => {
@@ -109,5 +85,12 @@ export default function apply(ctx: Context) {
         socket.close();
       }
     };
+  });
+
+  ctx.inject(["kkrpc"], (ctx) => {
+    console.log("start listen");
+    ctx.kkrpc.on("kkrpc/custom", (n: number) => {
+      console.log("host:", n);
+    });
   });
 }

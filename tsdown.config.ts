@@ -15,7 +15,7 @@ export default defineConfig([
     sourcemap: true,
     deps: {
       neverBundle: ["@deepseek-ai/cordis"],
-      alwaysBundle: [/^kkrpc/],
+      alwaysBundle: [/^@mrthanlon\/kkrpc/],
     },
   },
   {
@@ -30,7 +30,7 @@ export default defineConfig([
     sourcemap: true,
     deps: {
       neverBundle: ["@deepseek-ai/cordis"],
-      alwaysBundle: [/^kkrpc/],
+      alwaysBundle: [/^@mrthanlon\/kkrpc/],
     },
     outputOptions: {
       entryFileNames: "client.js",

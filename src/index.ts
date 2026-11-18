@@ -108,43 +108,6 @@ function createServerTransport(socket: Duplex): Transport<RPCMessage> {
   };
 }
 
-function createTrackedContextProxy(ctx: Context, disposers: Set<() => void>) {
-  return new Proxy(ctx as any, {
-    get(target, prop) {
-      if (prop === "on" || prop === "once") {
-        return (event: string, listener: (...args: any[]) => any) => {
-          // 包装远端回调：若远端连接断开或调用抛错，捕获返回的 rejected promise，防止导致 Node.js 未捕获异常
-          const safeListener = (...args: any[]) => {
-            try {
-              const res = listener(...args);
-              if (res && typeof res.catch === "function") {
-                res.catch(() => {});
-              }
-              return res;
-            } catch {
-              return undefined;
-            }
-          };
-
-          const unregister = target[prop](event, safeListener);
-          const dispose = () => {
-            disposers.delete(dispose);
-            unregister();
-          };
-          disposers.add(dispose);
-          return dispose;
-        };
-      }
-
-      const value = Reflect.get(target, prop, target);
-      if (typeof value === "function") {
-        return value.bind(target);
-      }
-      return value;
-    },
-  });
-}
-
 export default class KkRPCService extends Service {
   static inject = ["webServer"];
 
@@ -173,26 +136,14 @@ export default class KkRPCService extends Service {
             `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
         );
 
-        const disposers = new Set<() => void>();
-        const trackedCtx = createTrackedContextProxy(ctx, disposers);
         const transport = createServerTransport(socket);
-
-        const channel = new RPCChannel(transport, {
-          expose: trackedCtx,
+        this.channel = new RPCChannel(transport, {
+          expose: ctx,
+          timeout: 0,
         });
-        this.channel = channel;
 
         socket.once("close", () => {
-          for (const dispose of disposers) {
-            try {
-              dispose();
-            } catch {}
-          }
-          disposers.clear();
-          channel.destroy();
-          if (this.channel === channel) {
-            this.channel = null;
-          }
+          this.channel = null;
         });
       },
     };
@@ -203,15 +154,6 @@ export default class KkRPCService extends Service {
         unregisterUpgrade();
         this.channel = null;
       };
-    });
-
-    ctx.inject(["timer"], (ctx) => {
-      let n = 0;
-      ctx.interval(() => {
-        console.log("foo", n);
-        ctx.emit("kkrpc/custom", n);
-        n += 1;
-      }, 3000);
     });
   }
 }

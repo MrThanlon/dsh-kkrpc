@@ -1,11 +1,5 @@
 export const ROUTE_PATH = "/dsh-kkrpc";
 
-declare module "@deepseek-ai/cordis" {
-  interface Events {
-    "kkrpc/custom"(n: number): void;
-  }
-}
-
 /**
  * Transforms an RPC value type to reflect wire serialization rules.
  * Functions and closures cannot be serialized over RPC and arrive as `undefined`.

@@ -57,7 +57,10 @@ export default function apply(ctx: Context) {
           return;
         }
         serviceFork = {
-          dispose: ctx.provide("kkrpc", wrap(webSocketTransport(ws))),
+          dispose: ctx.provide(
+            "kkrpc",
+            wrap(webSocketTransport(ws), { timeout: 0 }),
+          ),
         };
       };
 
@@ -85,12 +88,5 @@ export default function apply(ctx: Context) {
         socket.close();
       }
     };
-  });
-
-  ctx.inject(["kkrpc"], (ctx) => {
-    console.log("start listen");
-    ctx.kkrpc.on("kkrpc/custom", (n: number) => {
-      console.log("host:", n);
-    });
   });
 }

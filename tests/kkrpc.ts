@@ -1,43 +1,26 @@
 import {
   expose,
   PromisifyReturn,
+  RPCChannel,
   Transport,
   wrap,
 } from "@mrthanlon/kkrpc/remote-refs";
-import {
-  webSocketClientTransport,
-  webSocketTransport,
-} from "@mrthanlon/kkrpc/ws";
-import { WebSocketServer } from "ws";
-import { Context, Events } from "@deepseek-ai/cordis";
+import { createPair } from "./common";
 
-declare module "@deepseek-ai/cordis" {
-  interface Events {
-    "foo"(n: number): void;
-  }
-}
+const api = {
+  callback(cb: () => () => void) {
+    const fn = cb();
+    return fn;
+  },
+};
+const [a, b] = createPair();
+const server = new RPCChannel(a, { expose: api });
+const client = wrap<typeof api>(b);
 
-const wss = new WebSocketServer({ port: 0 });
-wss.on("connection", (ws) => {
-  const ctx = new Context();
-  expose(ctx as any, webSocketTransport(ws));
-  setInterval(() => {
-    ctx.emit("foo", 222);
-  }, 1000);
+const fn = await client.callback(() => {
+  console.log("start");
+  return () => {
+    console.log("dispose");
+  };
 });
-wss.on("listening", async () => {
-  const address = wss.address();
-  const port = (address as { port: number }).port;
-  const ctx = wrap<Context>(
-    webSocketClientTransport({ url: `ws://localhost:${port}` }),
-  );
-
-  const dispose = await ctx.on("foo", (n: number) => {
-    console.log("foo", n);
-    setTimeout(() => {
-      dispose();
-      setTimeout(() => process.exit(0), 3000);
-    }, 5000);
-  });
-  console.log(dispose);
-});
+await fn();

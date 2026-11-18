@@ -6,12 +6,12 @@ Welcome to **dsh-kkrpc**. This guide documents the architecture, conventions, an
 
 ## 1. Project Overview
 
-`dsh-kkrpc` is an official DeepSeek Harness (DSH) bridge plugin providing seamless, type-safe, bidirectional RPC communication between Host and Client runtimes powered by [kkrpc](https://github.com/kunkunsh/kkrpc).
+`dsh-kkrpc` is an official DeepSeek Harness (DSH) bridge plugin providing seamless, type-safe, bidirectional RPC communication between Host and Client runtimes powered by [@mrthanlon/kkrpc](https://github.com/MrThanlon/kkrpc) (`kkrpc/remote-refs`).
 
 - **Plugin Name**: `dsh-kkrpc`
-- **Cordis Service**: `kkrpc` (accessible via `ctx.kkrpc`)
+- **Cordis Service**: `kkrpc` (accessible via `ctx.kkrpc`, typed as `Remote<Context>`)
 - **Default WebSocket Endpoint**: `/dsh-kkrpc`
-- **Type Contract**: Pure TypeScript class pattern, built with `tsdown` and `tsc`.
+- **Architecture**: Directly exposes the Cordis `Context` across the wire with remote-reference support, allowing clients to invoke host services, listen to events, and pass callbacks with automatic garbage collection.
 
 ---
 
@@ -21,25 +21,23 @@ Welcome to **dsh-kkrpc**. This guide documents the architecture, conventions, an
 - Extends Cordis `Service` and declares `static inject = ['webServer']`.
 - Registers a WebSocket HTTP upgrade route on `ctx.webServer.registerUpgrade` at `/dsh-kkrpc`.
 - Implements RFC 6455 framing and unmasking over raw TCP `Duplex` streams without external Node `ws` dependencies.
-- Binds accepted connections to kkrpc's `RPCChannel`.
+- Advertises `capabilities: { remoteRefs: true }` on its transport.
+- Directly exposes `ctx` to the connecting client via `new RPCChannel(transport, { expose: ctx, timeout: 0 })`.
 
 ### 2.2 Client Side (`src/client.ts`)
 - **Dynamic Service Lifecycle**:
   - The default export is a standard plugin function `apply(ctx: Context)`.
-  - It establishes and monitors the WebSocket connection.
-  - `KkRPCService` is **only mounted** upon successful WebSocket connection (`ws.onopen`) via `ctx.plugin(KkRPCService, { socket })`.
-  - When the socket disconnects, the service fork is immediately disposed (`dispose()`) and attempts to reconnect. Downstream plugins depending on `inject: ['kkrpc']` are thus automatically suspended and reactivated by Cordis in sync with connection state.
+  - Establishes and monitors the WebSocket connection.
+  - On `ws.onopen`, mounts the remote context proxy via `ctx.provide('kkrpc', wrap(webSocketTransport(ws), { timeout: 0 }))`.
+  - When the socket disconnects, disposes the service fork and reconnects with exponential/fixed backoff.
 - **Smart URL Resolution (`resolveWebSocketUrl`)**:
-  - **Web / Reverse Proxy**: If `window.location.protocol` is `http:` or `https:`, it prioritizes `window.location.host` to ensure seamless operation through Nginx, Caddy, or external domains.
-  - **Electron Desktop**: If running under `dsh-app://app/` or non-HTTP protocols, it directly uses DSH's desktop transport origin from `globalThis.__DSH_TRANSPORT__.streamBaseUrl`, ensuring reliable connection even when plugins are installed/reloaded dynamically after page boot.
+  - **Web / Reverse Proxy**: If `window.location.protocol` is `http:` or `https:`, prioritizes `window.location.host` to ensure seamless operation through reverse proxies.
+  - **Electron Desktop**: If running under `dsh-app://app/` or non-HTTP protocols, directly uses DSH's desktop transport origin from `globalThis.__DSH_TRANSPORT__.streamBaseUrl`.
 
-### 2.3 Service Contract (`src/shared.ts`)
-Both Host and Client implement `IKkRPCService`:
-- `exposeAPI<T>(namespace: string, api: T): () => void`
-  - Mounts methods under an isolated `namespace`.
-  - Automatically manages cleanup via `this.ctx.effect`: when the registering plugin unloads, its exposed API is automatically unmounted.
-- `getAPI<T>(namespace: string): Promisify<T>`
-  - Synchronously returns the proxy for that namespace. Automatically maps remote methods with recursive `Promisify<T>` ensuring type safety.
+### 2.3 Automatic Garbage Collection & Remote References
+- Uses `@mrthanlon/kkrpc/remote-refs` with `FinalizationRegistry` integration.
+- When callbacks or closures are passed over the bridge, the receiving end creates a remote reference facade.
+- Once the receiver finishes using the callback and the proxy is garbage collected by V8, the receiver automatically notifies the sender via `['ref', id, 'release']`, releasing the closure from the sender's memory without manual cleanup calls.
 
 ---
 
@@ -55,8 +53,8 @@ dsh-kkrpc/
 ├── AGENTS.md             # Developer and agent guide
 ├── src/
 │   ├── index.ts          # Host runtime entry (KkRPCService)
-│   ├── client.ts         # Client runtime entry (apply + dynamic KkRPCService)
-│   └── shared.ts         # Shared constants and types (Promisify, IKkRPCService)
+│   ├── client.ts         # Client runtime entry (apply + dynamic service provider)
+│   └── shared.ts         # Shared constants and utility types
 ├── lib/                  # Compiled output (built by tsc & tsdown)
 │   ├── index.js          # Host ESM bundle
 │   ├── index.d.ts        # Host TypeScript declaration
@@ -72,41 +70,20 @@ dsh-kkrpc/
 
 ## 4. Development & Build Workflows
 
-All commands are standard single-line npm/pnpm scripts:
-
 ```bash
 # Build declarations with tsc and bundles with tsdown into lib/
 pnpm run build
 
 # Run type checking without emitting files
 pnpm run typecheck
+
+# Run memory leak and GC verification test
+pnpm exec tsx --expose-gc tests/kkrpc-gc.ts
 ```
 
 ---
 
 ## 5. Usage Example
-
-### In Host Plugin
-```ts
-import type { Context } from '@deepseek-ai/cordis';
-
-export const inject = ['kkrpc'];
-
-export function apply(ctx: Context) {
-  // Expose methods under a dedicated namespace
-  ctx.kkrpc.exposeAPI('myHostService', {
-    async querySystemStatus() {
-      return { status: 'healthy', timestamp: Date.now() };
-    },
-  });
-
-  // Call Client methods once connected
-  void (async () => {
-    const client = ctx.kkrpc.getAPI('myClientService');
-    const result = await client.notifyUser('Hello from Host!');
-  })();
-}
-```
 
 ### In Client Plugin
 ```ts
@@ -115,19 +92,15 @@ import type { Context } from '@deepseek-ai/cordis';
 export const inject = ['kkrpc'];
 
 export function apply(ctx: Context) {
-  // Expose frontend methods (e.g. notifications, UI actions)
-  ctx.kkrpc.exposeAPI('myClientService', {
-    async notifyUser(message: string) {
-      console.log('Received notification:', message);
-      return { acknowledged: true };
-    },
+  // Listen to events emitted by the Host Context
+  ctx.kkrpc.on('some-event', (data) => {
+    console.log('Received from host:', data);
   });
 
-  // Call Host methods
+  // Call Host services directly
   void (async () => {
-    const host = ctx.kkrpc.getAPI('myHostService');
-    const status = await host.querySystemStatus();
-    console.log('Host status:', status);
+    const status = await ctx.kkrpc.webServer.status();
+    console.log('Host webServer status:', status);
   })();
 }
 ```
@@ -136,8 +109,7 @@ export function apply(ctx: Context) {
 
 ## 6. Critical Rules for AI Agents
 
-1. **Client Inlining**: Client bundles run in browser contexts where npm dependencies do not exist. `kkrpc` must always be bundled inline (`alwaysBundle: [/^kkrpc/]`). Never allow `require('kkrpc')` in emitted `lib/client.js`.
+1. **Client Inlining**: Client bundles run in browser contexts where npm dependencies do not exist. `@mrthanlon/kkrpc` must always be bundled inline (`alwaysBundle: [/^@mrthanlon\/kkrpc/]`). Never allow `require('@mrthanlon/kkrpc')` in emitted `lib/client.js`.
 2. **Client Loader Wrapping**: Do not write `window.__ModuleLoader__.load` boilerplate in `src/client.ts`. The wrapper is injected by `tsdown.config.ts` via `outputOptions.banner/footer/intro`.
-3. **No Defensive `?.` Overuse**: Avoid unnecessary optional chaining on injected services (e.g., `ctx.webServer` is guaranteed when declared in `inject`).
-4. **Strict Namespacing**: Always require `namespace: string` on `exposeAPI` and `getAPI`. Do not use optional root APIs.
-5. **Cordis Augmentation**: Do not re-augment `webServer` in `@deepseek-ai/cordis`; it is already augmented by `@deepseek-ai/dsh-host-webserver`. Only augment `kkrpc`.
+3. **No Defensive `?.` Overuse**: Avoid unnecessary optional chaining on injected services.
+4. **Cordis Augmentation**: Extend `Context` with `kkrpc: Remote<Context>` in client declarations.

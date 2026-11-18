@@ -2,3 +2,4 @@ allowBuilds:
   esbuild: false
 minimumReleaseAgeExclude:
   - '@mrthanlon/kkrpc@3.0.0'
+  - '@mrthanlon/kkrpc@3.0.1'
